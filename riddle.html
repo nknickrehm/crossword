@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Riddle</title>
+  <meta charset="utf-8">
+  <style type="text/css">
+    * {
+      font-family: "Courier New", Courier, monospace;
+      padding: 0;
+      margin: 0;
+      line-height: 1.5rem;
+      font-size: 1.3rem;
+    }
+
+    body {
+    }
+
+    #words {
+      width: 90%;
+      height: 10rem;
+    }
+
+    #nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    table {
+      table-layout: fixed;
+      margin: 0 auto;
+    }
+
+    tr {
+      height: 50px;
+    }
+
+    td {
+      text-align: center;
+      vertical-align: center;
+      min-width: 50px;
+      min-height: 50px;
+      max-width: 50px;
+      max-height: 50px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid #ddd;
+    }
+
+    td.empty {
+      border-color: #fff;
+    }
+
+
+    td textarea {
+      min-width: 50px;
+      min-height: 50px;
+      max-width: 50px;
+      max-height: 50px;
+      background: #aaa;
+      color: #fff;
+      font-size: 12px;
+      line-height: 14px;
+      resize: none;
+      border: none;
+      outline: none;
+    }
+
+    .hint {
+      background: #ddd;
+      color: #ddd;
+    }
+  </style>
+</head>
+<body>
+  <textarea id="words"></textarea>
+  <input type="submit" value="Erzeugen" onclick="load()">
+</body>
+<script type="text/javascript">
+  const SIZE = 100;
+  const grid = new Array(SIZE);
+  let words = [];
+  let unplacableWords = [];
+
+  let loopCounter = 0;
+
+  function load() {
+    let _words = document.querySelector('#words').value;
+    _words = _words.toLowerCase();
+    _words = _words.replace('ß', 'ss');
+    _words = _words.replace('ä', 'ae');
+    _words = _words.replace('ö', 'oe');
+    _words = _words.replace('ü', 'ue');
+    words = _words.split(' ');
+    generate();
+  }
+
+  function generate() {
+    // Sort the words by length
+    //const words_sorted_by_length = words.sort((a, b) => a.length < b.length ? 1 : (a.length > b.length ? -1 : 0));
+    const words_sorted_by_length = words.slice();
+
+    for (let i = 0; i < SIZE; i++) grid[i] = new Array(SIZE);
+
+    let word = words_sorted_by_length[0];
+    // Place the first word
+    const x = Math.floor(SIZE / 2 - word.length / 2);
+    const y = Math.floor(SIZE / 2);
+    grid[y][x-1] = '#';
+
+    for (let i = 0; i < word.length; i++) {
+      grid[y][x+i] = word[i];
+    }
+
+    words_sorted_by_length.shift();
+
+    // Place the rest of the words
+    while (words_sorted_by_length.length > 0) {
+      word = words_sorted_by_length[0];
+      let unplacedWord = findBestSpotAndPlace(word);
+
+      if (unplacedWord) unplacableWords.push(unplacedWord);
+
+      words_sorted_by_length.shift();
+    }
+
+    if (unplacableWords.length > 0) {
+      return tryToFixTheRiddle();
+    }
+    
+    document.querySelector('body').innerHTML = '';
+
+    document.querySelector('body').insertAdjacentHTML('beforeend', `
+      <nav id="nav">
+        <input type="submit" value="Erzeugen" onclick="generate()">
+      </nav>
+    `);
+
+    document.querySelector('body').insertAdjacentHTML('beforeend', `<table id="grid">`);
+    const gridDOM = document.querySelector('#grid');
+    
+    let minX = SIZE;
+    let minY = SIZE;
+    let maxX = 0;
+    let maxY = 0;
+
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        if (grid[y][x]) minX = Math.min(minX, x);
+        if (grid[y][x]) minY = Math.min(minY, y);
+        if (grid[y][x]) maxX = Math.max(maxX, x);
+        if (grid[y][x]) maxY = Math.max(maxY, y);
+
+        grid[y][x] = grid[y][x] || '&nbsp;';
+      }
+    }
+
+    maxY ++;
+
+    const diffX = maxX - minX;
+    const diffY = maxY - minY;
+
+    const optimizedGrid = new Array(diffY);
+
+    for (let y = 0; y < diffY; y++) {
+      optimizedGrid[y] = grid[minY + y].slice(minX, maxX + 1);
+    }
+
+    optimizedGrid.forEach(line => {
+      let output = '';
+      line.forEach(item => {
+        if (item === '#') 
+          output += `<td class="hint"><textarea></textarea></td>`;
+        else if (item ==='&nbsp;')
+          output += `<td class="empty">&nbsp;</td>`;
+        else
+          output += `<td>${item}</td>`;
+      });
+      gridDOM.insertAdjacentHTML('beforeend', `<tr>${output}</tr>`);
+    });
+  }
+
+  function findBestSpotAndPlace(word) {
+    const length = word.length;
+
+    let spots = [];
+
+    // Check horizontal
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 1; x < SIZE - 1 - length; x++) {
+        let fits = true;
+        let matchingLetters = 0;
+
+        const left = Math.max(0, x - 1);
+        const right = Math.min(SIZE - 1, x + length);
+
+        // no words left or right allowed
+        if (grid[y][left] || grid[y][right]) fits = false;
+
+        // check all letters
+        for (let p = 0; p < length; p++) {
+          let thisChar = grid[y][x+p];
+          if (thisChar) {
+            if (thisChar === word[p]) {
+              matchingLetters++;
+              const above = Math.max(0, y - 1);
+              const below = Math.min(SIZE - 1, y + 1);
+              if (grid[above][left] || grid[below][left] || grid[above][right] || grid[below][right]) fits = false;
+            } else {
+              fits = false;
+            }
+          }
+        }
+
+        if (fits && matchingLetters > 0) {
+          spots.push({x, y, matchingLetters, isVertical: false});
+        }
+      }
+    }
+
+    // Check vertical
+    for (let y = 1; y < SIZE - 1 - length; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        let fits = true;
+        let matchingLetters = 0;
+
+        const above = Math.max(0, y - 1);
+        const below = Math.min(SIZE - 1, y + length);
+
+        // no words above or below allowed
+        if (grid[above][x] || grid[below][x]) fits = false;
+
+        // check all letters
+        for (let p = 0; p < length; p++) {
+          let thisChar = grid[y+p][x];
+          if (thisChar) {
+            if (thisChar === word[p]) {
+              matchingLetters++;
+              const left = Math.max(0, x - 1);
+              const right = Math.min(SIZE - 1, x + 1);
+              if (grid[above][left] || grid[above][right] || grid[below][left] || grid[below][right]) fits = false;
+            } else {
+              fits = false;
+            }
+          }
+        }
+
+        if (fits && matchingLetters > 0) {
+          spots.push({x, y, matchingLetters, isVertical: true});
+        }
+      }
+    }
+
+    spots = spots.sort((a, b) => a.matchingLetters - b.matchingLetters);
+    
+    if (spots.length < 1) return word;
+
+    const randomIndex = Math.floor(Math.random() * spots.length);
+    const bestSpot = spots[randomIndex];
+    const x = bestSpot.x;
+    const y = bestSpot.y;
+
+    if (bestSpot.isVertical) {
+      grid[y-1][x] = '#';
+
+      for (let i = 0; i < length; i++) {
+        grid[y+i][x] = word[i];
+      }
+    } else {
+      grid[y][x-1] = '#';
+
+      for (let i = 0; i < length; i++) {
+        grid[y][x+i] = word[i];
+      }
+    }
+  }
+
+  function tryToFixTheRiddle() {
+    let new_words = words;
+
+    unplacableWords.reverse();
+    
+    unplacableWords.forEach(word => {
+      new_words.splice(new_words.indexOf(word), 1);
+      new_words.unshift(word);
+    });
+
+    unplacableWords = [];
+    loopCounter++;
+
+    if (loopCounter <= 100) {
+      console.log(loopCounter);
+      generate();
+    } else console.log('impossible');
+  }
+</script>
+</html>
