@@ -74,7 +74,9 @@
 </head>
 <body>
   <textarea id="words"></textarea>
-  <input type="submit" value="Erzeugen" onclick="load()">
+  <p>Bitte die Begriffe mit einem Leerzeichen trennen. Großschreibung und Umlaute werden automatisch entfernt.</p>
+  <p style="color: red;">Achtung! Dieser Generator ist ein bisschen Brute Force für komplexe Rätsel.</p>
+  <input type="submit" value="Generieren" onclick="load()">
 </body>
 <script type="text/javascript">
   const SIZE = 100;
@@ -92,6 +94,7 @@
     _words = _words.replace('ö', 'oe');
     _words = _words.replace('ü', 'ue');
     words = _words.split(' ');
+    words.sort((a, b) => a.length - b.length);
     generate();
   }
 
@@ -132,7 +135,7 @@
 
     document.querySelector('body').insertAdjacentHTML('beforeend', `
       <nav id="nav">
-        <input type="submit" value="Erzeugen" onclick="generate()">
+        <input type="submit" value="Neu generieren" onclick="generate()">
       </nav>
     `);
 
@@ -279,7 +282,7 @@
     let new_words = words;
 
     unplacableWords.reverse();
-    
+
     unplacableWords.forEach(word => {
       new_words.splice(new_words.indexOf(word), 1);
       new_words.unshift(word);
@@ -288,7 +291,7 @@
     unplacableWords = [];
     loopCounter++;
 
-    if (loopCounter <= 100) {
+    if (loopCounter <= 1000) {
       console.log(loopCounter);
       generate();
     } else console.log('impossible');
