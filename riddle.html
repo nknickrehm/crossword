@@ -13,6 +13,7 @@
     }
 
     body {
+      padding: 1rem;
     }
 
     #words {
@@ -70,6 +71,14 @@
       background: #ddd;
       color: #ddd;
     }
+
+    #grid.hidden-answers td {
+      color: #fff;
+    }
+
+    #nav.hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -78,6 +87,7 @@
   <p style="color: red;">Achtung! Dieser Generator ist ein bisschen Brute Force für komplexe Rätsel.</p>
   <input type="submit" value="Generieren" onclick="load()">
 </body>
+<script src="html2canvas.js"></script>
 <script type="text/javascript">
   const SIZE = 100;
   const grid = new Array(SIZE);
@@ -135,7 +145,9 @@
 
     document.querySelector('body').insertAdjacentHTML('beforeend', `
       <nav id="nav">
-        <input type="submit" value="Neu generieren" onclick="generate()">
+        <input type="button" value="Generate" onclick="generate()">
+        <input type="button" value="Show / Hide answers" onclick="toggleAnswers()">
+        <input type="button" value="Download" onclick="savePicture()">
       </nav>
     `);
 
@@ -194,8 +206,10 @@
         let fits = true;
         let matchingLetters = 0;
 
-        const left = Math.max(0, x - 1);
-        const right = Math.min(SIZE - 1, x + length);
+        let left = Math.max(0, x - 1);
+        let right = Math.min(SIZE - 1, x + length);
+        const above = Math.max(0, y - 1);
+        const below = Math.min(SIZE - 1, y + 1);
 
         // no words left or right allowed
         if (grid[y][left] || grid[y][right]) fits = false;
@@ -206,8 +220,10 @@
           if (thisChar) {
             if (thisChar === word[p]) {
               matchingLetters++;
-              const above = Math.max(0, y - 1);
-              const below = Math.min(SIZE - 1, y + 1);
+              
+              left = Math.max(0, x + p - 1);
+              right = Math.min(SIZE - 1, x + p + 1);
+
               if (grid[above][left] || grid[below][left] || grid[above][right] || grid[below][right]) fits = false;
             } else {
               fits = false;
@@ -227,8 +243,10 @@
         let fits = true;
         let matchingLetters = 0;
 
-        const above = Math.max(0, y - 1);
-        const below = Math.min(SIZE - 1, y + length);
+        const left = Math.max(0, x - 1);
+        const right = Math.min(SIZE - 1, x + 1);
+        let above = Math.max(0, y - 1);
+        let below = Math.min(SIZE - 1, y + length);
 
         // no words above or below allowed
         if (grid[above][x] || grid[below][x]) fits = false;
@@ -239,8 +257,10 @@
           if (thisChar) {
             if (thisChar === word[p]) {
               matchingLetters++;
-              const left = Math.max(0, x - 1);
-              const right = Math.min(SIZE - 1, x + 1);
+              
+              above = Math.max(0, y + p - 1);
+              below = Math.min(SIZE - 1, y + p + 1);
+
               if (grid[above][left] || grid[above][right] || grid[below][left] || grid[below][right]) fits = false;
             } else {
               fits = false;
@@ -295,6 +315,19 @@
       console.log(loopCounter);
       generate();
     } else console.log('impossible');
+  }
+
+  function toggleAnswers() {
+    document.querySelector('#grid').classList.toggle('hidden-answers');
+  }
+
+  function savePicture() {
+    html2canvas(document.querySelector("#grid")).then(canvas => {
+      const dataURL = canvas.toDataURL('image/png');
+      document.querySelector('body').insertAdjacentHTML('beforeend', `<a id="export" download="riddle.png" href="${dataURL}""></a>`);
+      document.querySelector('#export').click();
+      document.querySelector('body').removeChild(document.querySelector('#export'));
+    });
   }
 </script>
 </html>
